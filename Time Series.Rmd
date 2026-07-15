@@ -1,0 +1,43 @@
+# I will FIRSTLY install the packages needed for time series analysis
+# I will now load the libraries I need
+library(tidyverse)
+library(forecast)
+library(tseries)
+# Here I direct R to the folder containing FRED.csv
+setwd("C:/Users/jvcs_/OneDrive/LSE/course 3- advanced analytics/6 r advanced")
+# I will now import the data
+FRED <- read.csv('FRED.csv')
+# And then inspect the first 15 rows to understand the date format
+head(FRED, 15)
+# Below I am converting the date column into an unambiguous date format
+# (the raw dates are day/month/year, so I specify that explicitly)
+FRED$DATE <- as.Date(FRED$DATE, format = '%d/%m/%Y')
+# Renaming the columns for clarity
+colnames(FRED) <- c('date', 'index')
+# Checking the result
+head(FRED)
+# At this stage I inform R this data is a monthly time series starting January 1972
+FRED_ts <- ts(FRED$index, start = c(1972, 1), frequency = 12)
+# Now we can view the object
+FRED_ts
+# Now to plot the time series to see the overall pattern
+plot(FRED_ts)
+# The next step is to extract just 1972 to 1974 for a closer look
+FRED_window <- window(FRED_ts, start = c(1972, 1), end = c(1974, 12))
+plot(FRED_window)
+# Below I am grouping the observations by month to explore seasonality
+boxplot(FRED_ts ~ cycle(FRED_ts),
+        ylab = 'Production',
+        xlab = 'Month of the year',
+        main = 'Confectionery production by month')
+# Splitting the time series into trend, seasonal, and random components
+FRED_components <- decompose(FRED_ts)
+# Can now view the structure of the decomposed object
+str(FRED_components)
+# Plotting all four components together
+plot(FRED_components)
+# Extracting just the seasonal component
+FRED_seasonal <- FRED_components$seasonal
+# I will now view one year of the seasonal pattern (1972)
+window(FRED_seasonal, start = c(1972, 1), end = c(1972, 12))
+
