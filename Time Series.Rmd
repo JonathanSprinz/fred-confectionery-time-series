@@ -1,0 +1,84 @@
+# I will FIRSTLY install the packages needed for time series analysis
+# I will now load the libraries I need
+library(tidyverse)
+library(forecast)
+library(tseries)
+# Here I direct R to the folder containing FRED.csv
+setwd("C:/Users/jvcs_/OneDrive/LSE/course 3- advanced analytics/6 r advanced")
+# I will now import the data
+FRED <- read.csv('FRED.csv')
+# And then inspect the first 15 rows to understand the date format
+head(FRED, 15)
+# Below I am converting the date column into an unambiguous date format
+# (the raw dates are day/month/year, so I specify that explicitly)
+FRED$DATE <- as.Date(FRED$DATE, format = '%d/%m/%Y')
+# Renaming the columns for clarity
+colnames(FRED) <- c('date', 'index')
+# Checking the result
+head(FRED)
+# At this stage I inform R this data is a monthly time series starting January 1972
+FRED_ts <- ts(FRED$index, start = c(1972, 1), frequency = 12)
+# Now we can view the object
+FRED_ts
+# Now to plot the time series to see the overall pattern
+plot(FRED_ts)
+# The next step is to extract just 1972 to 1974 for a closer look
+FRED_window <- window(FRED_ts, start = c(1972, 1), end = c(1974, 12))
+plot(FRED_window)
+# Below I am grouping the observations by month to explore seasonality
+boxplot(FRED_ts ~ cycle(FRED_ts),
+        ylab = 'Production',
+        xlab = 'Month of the year',
+        main = 'Confectionery production by month')
+# Splitting the time series into trend, seasonal, and random components
+FRED_components <- decompose(FRED_ts)
+# Can now view the structure of the decomposed object
+str(FRED_components)
+# Plotting all four components together
+plot(FRED_components)
+# Extracting just the seasonal component
+FRED_seasonal <- FRED_components$seasonal
+# I will now view one year of the seasonal pattern (1972)
+window(FRED_seasonal, start = c(1972, 1), end = c(1972, 12))
+# The enxt step is to test stationarity with an augmented Dickey-Fuller test
+adf.test(FRED_ts)
+# Reviewing the random component for NA values
+FRED_components$random
+# Here I am plotting the ACF of the random component, removing NA values
+autoplot(acf(na.remove(FRED_components$random), plot = FALSE)) +
+  labs(title = 'Randomness value') +
+  theme_classic()
+# Now ployying a histogram of the random component to check its distribution
+hist(FRED_components$random)
+# Fittingthe model to the full time series
+arima_FRED_ts <- auto.arima(FRED_ts)
+# Making a forecast for the next three months
+forecast3_FRED_ts <- forecast(arima_FRED_ts, 3)
+# Now plot the forecast
+autoplot(forecast3_FRED_ts) + theme_classic()
+# Here I will print the forecasted values as a data frame
+forecast3_FRED_ts
+# Extending the forecast to the next 24 months
+forecast2_FRED_ts <- forecast(arima_FRED_ts, 24)
+# And plotting that extended forecast
+autoplot(forecast2_FRED_ts) + theme_classic()
+forecast2_FRED_ts
+# Create the training data set (everything up to Dec 2020)
+FRED_train_ts <- window(FRED_ts, start = c(1972, 1), end = c(2020, 12), frequency = 12)
+# Now the test data set (the last 12 months, 2021)
+FRED_test_ts <- window(FRED_ts, start = c(2021, 1), end = c(2021, 12), frequency = 12)
+# I will now sense-check both new time series
+head(FRED_train_ts)
+head(FRED_test_ts)
+# ARIMA model being fitted to the training data and forecast 12 months ahead
+forecast_FRED_train_ts <- forecast(auto.arima(FRED_train_ts), 12)
+# Plot the training forecast
+autoplot(forecast_FRED_train_ts) + theme_classic()
+# Overlaying both the training and test series on the forecast plot
+autoplot(forecast_FRED_train_ts) +
+  autolayer(FRED_train_ts, series = 'Train') +
+  autolayer(FRED_test_ts, series = 'Test') +
+  theme_classic()
+# I will now check the accuracy of the forecast against the test data
+accuracy(forecast_FRED_train_ts, FRED_test_ts)
+
